@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/rand"
+	"crypto/subtle"
 	"crypto/tls"
 	"database/sql"
 	"encoding/base64"
@@ -221,6 +222,95 @@ func (s *server) ActivateUser(ctx context.Context, req *pb.ActivateUserRequest) 
 	}
 
 	return user, nil
+}
+
+// Авторизация
+
+func (s *server) AuthenticateUser(ctx context.Context, req *pb.AuthenticateUserRequest) (*pb.AuthenticateUserResponse, error) {
+	email := req.GetEmail()
+	password := req.GetPassword()
+	stmt := `
+	SELECT id, name, email, password_hash, activated, roles
+	FROM users
+	WHERE email = $1
+`
+
+	row := s.db.QueryRow(ctx, stmt, email)
+
+	var (
+		id        int32
+		name      string
+		hash      []byte
+		activated bool
+		roles     string
+	)
+
+	err := row.Scan(&id, &name, &email, &hash, &activated, &roles)
+	if err != nil {
+		if err == sql.ErrNoRows {
+
+			return nil, status.Errorf(codes.NotFound, "Invalid email or password")
+		}
+		return nil, status.Errorf(codes.Internal, "Failed to fetch user: %v", err)
+	}
+
+	fmt.Println("Email checked")
+
+	hashString := hash
+
+	fmt.Println("Retrieved Hashed Password:", hashString)
+	fmt.Println("Plain Password:", []byte(password))
+
+	err = comparePasswords(password, []byte(hashString))
+	if err != nil {
+
+		return nil, status.Errorf(codes.NotFound, "Password man what")
+	}
+
+	fmt.Println("Password checked")
+
+	token, err := generateAuthToken()
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to generate authentication token: %v", err)
+	}
+
+	response := &pb.AuthenticateUserResponse{
+		Token: token,
+		User: &pb.User{
+			Id:        id,
+			Name:      name,
+			Email:     email,
+			Activated: activated,
+			Roles:     roles,
+		},
+	}
+
+	return response, nil
+}
+
+func comparePasswords(plainPassword string, hashedPassword []byte) error {
+
+	plainPasswordBytes := []byte(plainPassword)
+
+	match := subtle.ConstantTimeCompare(hashedPassword, plainPasswordBytes)
+
+	if match == 1 {
+
+		return nil
+	} else {
+
+		return fmt.Errorf("passwords do not match")
+	}
+}
+func generateAuthToken() (string, error) {
+
+	tokenBytes := make([]byte, 32)
+	_, err := rand.Read(tokenBytes)
+	if err != nil {
+		return "", err
+	}
+	token := base64.URLEncoding.EncodeToString(tokenBytes)
+	return token, nil
 }
 
 func main() {
