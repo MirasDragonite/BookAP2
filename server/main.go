@@ -16,6 +16,8 @@ import (
 	pb "UserService/userserver/test"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/jackc/pgx/v4"
@@ -176,6 +178,49 @@ func sendActivationEmail(email, token string) error {
 	}
 
 	return nil
+}
+func (s *server) ActivateUser(ctx context.Context, req *pb.ActivateUserRequest) (*pb.User, error) {
+	activation_token := req.GetActivationCode()
+
+	fmt.Println(req.GetId())
+
+	stmt := `
+		UPDATE users
+		SET activated = true
+		WHERE activation_token = $1
+		RETURNING id, name, email, activated, roles
+	`
+
+	row := s.db.QueryRow(ctx, stmt, activation_token)
+
+	var (
+		id    int32
+		name  string
+		email string
+
+		activated bool
+		roles     string
+	)
+
+	err := row.Scan(&id, &name, &email, &activated, &roles)
+	if err != nil {
+
+		if err == sql.ErrNoRows {
+			return nil, status.Errorf(codes.NotFound, "User not found")
+		}
+
+		return nil, status.Errorf(codes.Internal, "Failed to activate user: %v", err)
+	}
+
+	user := &pb.User{
+		Id:        req.GetId(),
+		Name:      name,
+		Email:     email,
+		Activated: true,
+		Roles:     roles,
+	}
+
+	return user, nil
 }
 
 func main() {
