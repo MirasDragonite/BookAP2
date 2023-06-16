@@ -1,0 +1,68 @@
+syntax = "proto3";
+option go_package="./test";
+package comics;
+
+import "google/api/annotations.proto";
+
+service ComicsService {
+  rpc CreateComic(CreateComicRequest) returns (Comic) {
+    option (google.api.http) = {
+      post: "/comics"
+      body: "*"
+    };
+  }
+
+  rpc ReadComic(ReadComicRequest) returns (Comic) {
+    option (google.api.http) = {
+      get: "/comics/{id}"
+    };
+  }
+
+  rpc UpdateComic(UpdateComicRequest) returns (Comic) {
+    option (google.api.http) = {
+      put: "/comics/{id}"
+      body: "*"
+    };
+  }
+
+  rpc DeleteComic(DeleteComicRequest) returns (DeleteComicResponse) {
+    option (google.api.http) = {
+      delete: "/comics/{id}"
+    };
+  }
+
+  
+}
+
+message Comic {
+  int64 id = 1;
+  string title = 2;
+  string author = 3;
+  int32 year = 4;
+  string language = 5;
+  int32 price = 6;
+  int32 quantity = 7;
+  string publisher = 8;
+}
+
+message CreateComicRequest {
+  Comic comic = 1;
+}
+
+message ReadComicRequest {
+  int64 id = 1;
+}
+
+message UpdateComicRequest {
+  int64 id = 1;
+  Comic comic = 2;
+}
+
+message DeleteComicRequest {
+  int64 id = 1;
+}
+
+message DeleteComicResponse {
+  bool success = 1;
+}
+
