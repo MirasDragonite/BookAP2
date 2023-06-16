@@ -1,0 +1,71 @@
+syntax = "proto3";
+option go_package="./test";
+
+package user;
+
+import "google/api/annotations.proto";
+
+message User {
+  int32 id = 1;
+  string name = 2;
+  string email = 3;
+  string password = 4;
+  bool activated = 5;
+  string roles = 6;
+}
+
+message Password {
+  string plaintext = 1;
+  bytes hash = 2;
+}
+
+service UserService {
+  rpc RegisterUser(RegisterUserRequest) returns (RegisterUserResponse) {
+    option (google.api.http) = {
+      post: "/users"
+      body: "*"
+    };
+  }
+
+  rpc ActivateUser(ActivateUserRequest) returns (User) {
+    option (google.api.http) = {
+      put: "/users/{id}"
+      body: "*"
+    };
+  }
+
+  rpc AuthenticateUser(AuthenticateUserRequest) returns (AuthenticateUserResponse) {
+    option (google.api.http) = {
+      post: "/users/authenticate"
+      body: "*"
+    };
+  }
+}
+
+message RegisterUserRequest {
+  User user = 1;
+  Password password = 2;
+}
+
+message RegisterUserResponse {
+  User user = 1;
+}
+
+message ActivateUserRequest {
+  int32 id = 1;
+  string activation_code = 2;
+}
+
+message ActivateUserResponse {
+  User user = 1;
+}
+
+message AuthenticateUserRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message AuthenticateUserResponse {
+  string token = 1;
+  User user = 2;
+}
